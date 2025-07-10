@@ -7,6 +7,27 @@ export interface ConversionJob {
   result?: string;
   error?: string;
   createdAt: Date;
+  lastUpdated: Date;
+}
+
+export interface PersistedJobData {
+  id: string;
+  filename: string;
+  status: 'pending' | 'processing' | 'completed' | 'error';
+  progress: number;
+  result?: string;
+  error?: string;
+  createdAt: string;
+  lastUpdated: string;
+  fileSize: number;
+  fileType: string;
+}
+
+export interface SystemPromptPreset {
+  id: string;
+  name: string;
+  prompt: string;
+  createdAt: Date;
 }
 
 export interface AppSettings {
@@ -17,6 +38,7 @@ export interface AppSettings {
   systemPrompt: string;
   temperature: number;
   outputLength: number;
+  systemPromptPresets: SystemPromptPreset[];
 }
 
 export interface ConversionResponse {

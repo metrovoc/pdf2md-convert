@@ -1,13 +1,38 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { ConversionJob, AppSettings } from '../types';
 import { convertPdfToMarkdown } from '../utils/api';
+import { persistQueue, loadPersistedQueue, clearPersistedQueue, isJobRecoverable } from '../utils/storage';
 
 export function useConversionQueue() {
   const [jobs, setJobs] = useState<ConversionJob[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [hasRecoverableJobs, setHasRecoverableJobs] = useState(false);
+
+  // 页面加载时检查是否有可恢复的任务
+  useEffect(() => {
+    const persistedJobs = loadPersistedQueue();
+    const recoverableJobs = persistedJobs.filter(isJobRecoverable);
+    
+    if (recoverableJobs.length > 0) {
+      setHasRecoverableJobs(true);
+    }
+  }, []);
+
+  // 自动持久化队列状态
+  useEffect(() => {
+    if (jobs.length > 0) {
+      persistQueue(jobs);
+    } else {
+      clearPersistedQueue();
+    }
+  }, [jobs]);
 
   const addJobs = useCallback((newJobs: ConversionJob[]) => {
-    setJobs(prev => [...prev, ...newJobs]);
+    const jobsWithTimestamp = newJobs.map(job => ({
+      ...job,
+      lastUpdated: new Date()
+    }));
+    setJobs(prev => [...prev, ...jobsWithTimestamp]);
   }, []);
 
   const removeJob = useCallback((jobId: string) => {
@@ -16,7 +41,7 @@ export function useConversionQueue() {
 
   const updateJob = useCallback((jobId: string, updates: Partial<ConversionJob>) => {
     setJobs(prev => prev.map(job => 
-      job.id === jobId ? { ...job, ...updates } : job
+      job.id === jobId ? { ...job, ...updates, lastUpdated: new Date() } : job
     ));
   }, []);
 
@@ -62,14 +87,50 @@ export function useConversionQueue() {
     setJobs([]);
   }, []);
 
+  // 恢复队列
+  const recoverJobs = useCallback(() => {
+    const persistedJobs = loadPersistedQueue();
+    const recoverableJobs = persistedJobs.filter(isJobRecoverable);
+    
+    if (recoverableJobs.length > 0) {
+      // 创建虚拟File对象用于恢复
+      const recoveredJobs: ConversionJob[] = recoverableJobs.map(persistedJob => ({
+        id: persistedJob.id,
+        filename: persistedJob.filename,
+        status: persistedJob.status === 'processing' ? 'pending' : persistedJob.status, // 将处理中的任务重置为待处理
+        progress: persistedJob.status === 'processing' ? 0 : persistedJob.progress,
+        result: persistedJob.result,
+        error: persistedJob.error,
+        createdAt: new Date(persistedJob.createdAt),
+        lastUpdated: new Date(persistedJob.lastUpdated),
+        file: new File([], persistedJob.filename, {
+          type: persistedJob.fileType,
+          lastModified: new Date(persistedJob.createdAt).getTime()
+        })
+      }));
+      
+      setJobs(recoveredJobs);
+      setHasRecoverableJobs(false);
+    }
+  }, []);
+
+  // 放弃恢复
+  const discardRecovery = useCallback(() => {
+    clearPersistedQueue();
+    setHasRecoverableJobs(false);
+  }, []);
+
   return {
     jobs,
     isProcessing,
+    hasRecoverableJobs,
     addJobs,
     removeJob,
     updateJob,
     processQueue,
     clearCompleted,
-    clearAll
+    clearAll,
+    recoverJobs,
+    discardRecovery
   };
 }

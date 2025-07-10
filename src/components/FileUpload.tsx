@@ -16,6 +16,7 @@ export function FileUpload({ onFilesSelect }: FileUploadProps) {
       progress: 0,
       file,
       createdAt: new Date(),
+      lastUpdated: new Date(),
     }));
     
     onFilesSelect(jobs);

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, X, Plus, Trash2, Wifi, WifiOff, Loader2 } from 'lucide-react';
-import { AppSettings } from '../types';
+import { Settings as SettingsIcon, X, Plus, Trash2, Wifi, WifiOff, Loader2, Save, Edit3, Download } from 'lucide-react';
+import { AppSettings, SystemPromptPreset } from '../types';
 import { testApiConnection, ApiTestResult } from '../utils/apiTest';
-import { defaultSettings } from '../utils/storage';
+import { defaultSettings, createSystemPromptPreset, addSystemPromptPreset, removeSystemPromptPreset, updateSystemPromptPreset } from '../utils/storage';
 
 interface SettingsProps {
   settings: AppSettings;
@@ -15,6 +15,9 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
   const [apiTest, setApiTest] = useState<ApiTestResult | null>(null);
   const [isTesting, setIsTesting] = useState(false);
   const [newCustomModel, setNewCustomModel] = useState('');
+  const [newPresetName, setNewPresetName] = useState('');
+  const [isCreatingPreset, setIsCreatingPreset] = useState(false);
+  const [editingPreset, setEditingPreset] = useState<string | null>(null);
 
   const handleSave = () => {
     onSettingsChange(tempSettings);
@@ -61,6 +64,31 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
       customModels: tempSettings.customModels.filter(model => model !== modelToRemove),
       model: tempSettings.model === modelToRemove ? commonModels[0] : tempSettings.model
     });
+  };
+
+  const handleCreatePreset = () => {
+    if (newPresetName.trim() && tempSettings.systemPrompt.trim()) {
+      const preset = createSystemPromptPreset(newPresetName.trim(), tempSettings.systemPrompt);
+      setTempSettings(addSystemPromptPreset(tempSettings, preset));
+      setNewPresetName('');
+      setIsCreatingPreset(false);
+    }
+  };
+
+  const handleDeletePreset = (presetId: string) => {
+    setTempSettings(removeSystemPromptPreset(tempSettings, presetId));
+  };
+
+  const handleLoadPreset = (preset: SystemPromptPreset) => {
+    setTempSettings({
+      ...tempSettings,
+      systemPrompt: preset.prompt
+    });
+  };
+
+  const handleUpdatePreset = (presetId: string, newName: string) => {
+    setTempSettings(updateSystemPromptPreset(tempSettings, presetId, { name: newName.trim() }));
+    setEditingPreset(null);
   };
 
   return (
@@ -244,9 +272,102 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  System Prompt
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    System Prompt
+                  </label>
+                  <button
+                    onClick={() => setIsCreatingPreset(true)}
+                    className="inline-flex items-center px-2 py-1 text-xs font-medium text-green-600 bg-green-50 hover:bg-green-100 rounded-md transition-colors"
+                  >
+                    <Save className="w-3 h-3 mr-1" />
+                    保存为预设
+                  </button>
+                </div>
+
+                {/* 预设管理 */}
+                {tempSettings.systemPromptPresets.length > 0 && (
+                  <div className="mb-3 p-3 bg-gray-50 rounded-md">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">快速加载预设</span>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2">
+                      {tempSettings.systemPromptPresets.map((preset) => (
+                        <div key={preset.id} className="flex items-center justify-between p-2 bg-white rounded border">
+                          <div className="flex-1">
+                            {editingPreset === preset.id ? (
+                              <input
+                                type="text"
+                                defaultValue={preset.name}
+                                onBlur={(e) => handleUpdatePreset(preset.id, e.target.value)}
+                                onKeyPress={(e) => e.key === 'Enter' && handleUpdatePreset(preset.id, e.currentTarget.value)}
+                                className="text-sm font-medium text-gray-900 bg-transparent border-none outline-none focus:bg-gray-50 px-1 py-0.5 rounded"
+                                autoFocus
+                              />
+                            ) : (
+                              <span className="text-sm font-medium text-gray-900">{preset.name}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <button
+                              onClick={() => handleLoadPreset(preset)}
+                              className="p-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                              title="加载预设"
+                            >
+                              <Download className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => setEditingPreset(preset.id)}
+                              className="p-1 text-gray-600 hover:text-gray-700 hover:bg-gray-50 rounded transition-colors"
+                              title="编辑名称"
+                            >
+                              <Edit3 className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => handleDeletePreset(preset.id)}
+                              className="p-1 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                              title="删除预设"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 创建预设对话框 */}
+                {isCreatingPreset && (
+                  <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="text"
+                        value={newPresetName}
+                        onChange={(e) => setNewPresetName(e.target.value)}
+                        placeholder="输入预设名称"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      />
+                      <button
+                        onClick={handleCreatePreset}
+                        disabled={!newPresetName.trim()}
+                        className="px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 rounded-md transition-colors"
+                      >
+                        保存
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsCreatingPreset(false);
+                          setNewPresetName('');
+                        }}
+                        className="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                      >
+                        取消
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <textarea
                   value={tempSettings.systemPrompt}
                   onChange={(e) => setTempSettings({ ...tempSettings, systemPrompt: e.target.value })}

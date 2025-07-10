@@ -6,13 +6,30 @@ export async function convertPdfToMarkdown(
   onProgress?: (progress: number) => void
 ): Promise<ConversionResponse> {
   try {
-    const formData = new FormData();
-    formData.append('file', file);
-
     onProgress?.(10);
 
-    const fileContent = await fileToBase64(file);
-    onProgress?.(30);
+    // 将PDF转换为图像
+    const images = await pdfToImages(file);
+    onProgress?.(40);
+
+    if (images.length === 0) {
+      throw new Error('PDF转换失败：无法提取图像');
+    }
+
+    // 构建包含多张图像的消息内容
+    const content = [
+      {
+        type: 'text' as const,
+        text: `请将这个PDF文档转换为清晰、结构化的Markdown格式。PDF共有${images.length}页，请按页面顺序处理并合并为一个完整的Markdown文档。`
+      },
+      ...images.map((imageBase64, index) => ({
+        type: 'image_url' as const,
+        image_url: {
+          url: `data:image/png;base64,${imageBase64}`,
+          detail: 'high' as const
+        }
+      }))
+    ];
 
     const response = await fetch(`${settings.apiUrl}/chat/completions`, {
       method: 'POST',
@@ -29,7 +46,7 @@ export async function convertPdfToMarkdown(
           },
           {
             role: 'user',
-            content: `请将这个PDF文档转换为Markdown格式：\n\n[PDF文档内容]\n${fileContent}`
+            content
           }
         ],
         temperature: 0.1,
@@ -38,14 +55,15 @@ export async function convertPdfToMarkdown(
       })
     });
 
-    onProgress?.(70);
+    onProgress?.(80);
 
     if (!response.ok) {
-      throw new Error(`API请求失败: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`API请求失败: ${response.status} ${response.statusText}\n${errorText}`);
     }
 
     const result = await response.json();
-    onProgress?.(90);
+    onProgress?.(95);
 
     if (result.choices && result.choices[0] && result.choices[0].message) {
       onProgress?.(100);
@@ -64,20 +82,54 @@ export async function convertPdfToMarkdown(
   }
 }
 
-async function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        const base64 = reader.result.split(',')[1];
-        resolve(base64);
-      } else {
-        reject(new Error('无法读取文件'));
-      }
+async function pdfToImages(file: File): Promise<string[]> {
+  try {
+    // 在浏览器环境中，我们需要使用不同的方法
+    // 由于pdf2pic是Node.js库，我们需要使用浏览器兼容的方案
+    return await convertPdfToImagesInBrowser(file);
+  } catch (error) {
+    console.error('PDF转换失败:', error);
+    throw new Error('PDF转换为图像失败');
+  }
+}
+
+async function convertPdfToImagesInBrowser(file: File): Promise<string[]> {
+  // 动态导入PDF.js
+  const pdfjsLib = await import('pdfjs-dist');
+  
+  // 设置worker
+  if (typeof pdfjsLib.GlobalWorkerOptions !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+  
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  
+  const images: string[] = [];
+  const scale = 2.0; // 提高分辨率
+  
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const viewport = page.getViewport({ scale });
+    
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d')!;
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
+    
+    const renderContext = {
+      canvasContext: context,
+      viewport: viewport
     };
-    reader.onerror = () => reject(new Error('文件读取失败'));
-    reader.readAsDataURL(file);
-  });
+    
+    await page.render(renderContext).promise;
+    
+    // 转换为base64
+    const base64 = canvas.toDataURL('image/png').split(',')[1];
+    images.push(base64);
+  }
+  
+  return images;
 }
 
 export function downloadMarkdown(filename: string, content: string) {

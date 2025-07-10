@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, X, Plus, Trash2, Wifi, WifiOff, Loader2 } from 'lucide-react';
 import { AppSettings } from '../types';
 import { testApiConnection, ApiTestResult } from '../utils/apiTest';
@@ -207,6 +207,42 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Temperature
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="2"
+                    step="0.1"
+                    value={tempSettings.temperature}
+                    onChange={(e) => setTempSettings({ ...tempSettings, temperature: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="0"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">控制输出的随机性 (0-2)</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    输出长度限制
+                  </label>
+                  <input
+                    type="number"
+                    min="1024"
+                    max="131072"
+                    step="1024"
+                    value={tempSettings.outputLength}
+                    onChange={(e) => setTempSettings({ ...tempSettings, outputLength: parseInt(e.target.value) || 65536 })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="65536"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">最大输出token数</p>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   System Prompt
@@ -218,12 +254,20 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                   placeholder={defaultSettings.systemPrompt}
                 />
-                <button
-                  onClick={() => setTempSettings({ ...tempSettings, systemPrompt: defaultSettings.systemPrompt })}
-                  className="mt-2 text-sm text-blue-600 hover:text-blue-700 underline"
-                >
-                  恢复默认提示词
-                </button>
+                <div className="flex space-x-4 mt-2">
+                  <button
+                    onClick={() => setTempSettings({ ...tempSettings, systemPrompt: defaultSettings.systemPrompt })}
+                    className="text-sm text-blue-600 hover:text-blue-700 underline"
+                  >
+                    恢复默认提示词
+                  </button>
+                  <button
+                    onClick={() => setTempSettings(defaultSettings)}
+                    className="text-sm text-red-600 hover:text-red-700 underline"
+                  >
+                    恢复所有默认设置
+                  </button>
+                </div>
               </div>
             </div>
 

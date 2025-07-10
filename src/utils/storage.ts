@@ -18,7 +18,9 @@ export const defaultSettings: AppSettings = {
 6. 移除页眉、页脚等冗余信息
 7. 确保输出的Markdown语法正确
 
-请直接输出转换后的Markdown内容，不要添加额外的说明文字。`
+请直接输出转换后的Markdown内容，不要添加额外的说明文字。`,
+  temperature: 0,
+  outputLength: 65536
 };
 
 export function loadSettings(): AppSettings {

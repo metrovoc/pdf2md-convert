@@ -22,7 +22,7 @@ export async function convertPdfToMarkdown(
         type: 'text' as const,
         text: `请将这个PDF文档转换为清晰、结构化的Markdown格式。PDF共有${images.length}页，请按页面顺序处理并合并为一个完整的Markdown文档。`
       },
-      ...images.map((imageBase64, index) => ({
+      ...images.map((imageBase64) => ({
         type: 'image_url' as const,
         image_url: {
           url: `data:image/png;base64,${imageBase64}`,
@@ -49,8 +49,8 @@ export async function convertPdfToMarkdown(
             content
           }
         ],
-        temperature: 0.1,
-        max_tokens: 4096,
+        temperature: settings.temperature,
+        max_tokens: settings.outputLength,
         stream: false
       })
     });
@@ -133,13 +133,23 @@ async function convertPdfToImagesInBrowser(file: File): Promise<string[]> {
 }
 
 export function downloadMarkdown(filename: string, content: string) {
-  const blob = new Blob([content], { type: 'text/markdown' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename.replace('.pdf', '.md');
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  try {
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename.replace('.pdf', '.md');
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    
+    // 延迟清理，确保下载能够完成
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+  } catch (error) {
+    console.error('下载失败:', error);
+    alert('下载失败，请重试');
+  }
 }

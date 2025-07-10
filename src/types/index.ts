@@ -15,6 +15,8 @@ export interface AppSettings {
   model: string;
   customModels: string[];
   systemPrompt: string;
+  temperature: number;
+  outputLength: number;
 }
 
 export interface ConversionResponse {

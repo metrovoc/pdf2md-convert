@@ -7,7 +7,7 @@ import { usePageVisibility } from './hooks/usePageVisibility';
 import { useBeforeUnload } from './hooks/useBeforeUnload';
 import { downloadMarkdown } from './utils/api';
 import { AppSettings, ConversionJob } from './types';
-import { loadSettings, saveSettings } from './utils/storage';
+import { loadSettings, saveSettings, getActiveService } from './utils/storage';
 import { Play, Trash2, Download, RefreshCw, AlertCircle, X, WifiOff, Wifi } from 'lucide-react';
 
 function App() {
@@ -51,6 +51,9 @@ function App() {
   const pendingCount = jobs.filter(job => job.status === 'pending').length;
   const completedCount = jobs.filter(job => job.status === 'completed').length;
   const processingCount = jobs.filter(job => job.status === 'processing').length;
+  
+  const activeService = getActiveService(settings);
+  const hasValidService = activeService && activeService.apiKey;
 
   // 当有进行中的任务时，离开页面需要确认
   const hasActiveJobs = isProcessing || processingCount > 0;
@@ -75,6 +78,21 @@ function App() {
                 <h3 className="text-sm font-medium text-red-800">网络连接断开</h3>
                 <p className="text-sm text-red-700 mt-1">
                   当前网络不可用，转换功能暂时无法使用。请检查网络连接后重试。
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* API密钥缺失提示 */}
+        {isOnline && !hasValidService && (
+          <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <AlertCircle className="w-5 h-5 text-yellow-600 mr-3" />
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-yellow-800">API密钥未配置</h3>
+                <p className="text-sm text-yellow-700 mt-1">
+                  请在设置中配置 {activeService?.name} 的API密钥才能使用转换功能。
                 </p>
               </div>
             </div>
@@ -117,9 +135,22 @@ function App() {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">PDF转Markdown工具</h1>
-                <p className="text-sm text-gray-600 mt-1">
-                  批量将PDF文档转换为Markdown格式
-                </p>
+                <div className="flex items-center space-x-4 mt-1">
+                  <p className="text-sm text-gray-600">
+                    批量将PDF文档转换为Markdown格式
+                  </p>
+                  {activeService && (
+                    <div className="flex items-center space-x-2 text-sm">
+                      <span className="text-gray-500">当前服务:</span>
+                      <div className="flex items-center space-x-1">
+                        <span>{activeService.icon}</span>
+                        <span className="font-medium text-gray-700">{activeService.name}</span>
+                        <div className={`w-2 h-2 rounded-full ${hasValidService ? 'bg-green-500' : 'bg-red-500'}`} 
+                             title={hasValidService ? 'API密钥已配置' : 'API密钥未配置'} />
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="flex items-center space-x-2">
                 {/* 网络状态指示器 */}
@@ -152,9 +183,9 @@ function App() {
                 <div className="flex items-center space-x-4">
                   <button
                     onClick={() => processQueue(settings)}
-                    disabled={isProcessing || pendingCount === 0 || !isOnline}
+                    disabled={isProcessing || pendingCount === 0 || !isOnline || !hasValidService}
                     className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 rounded-md transition-colors"
-                    title={!isOnline ? '网络连接断开' : ''}
+                    title={!isOnline ? '网络连接断开' : !hasValidService ? '请先配置API密钥' : ''}
                   >
                     <Play className="w-4 h-4 mr-2" />
                     {isProcessing ? '处理中...' : `开始转换 (${pendingCount})`}

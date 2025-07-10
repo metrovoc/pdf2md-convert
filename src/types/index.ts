@@ -30,11 +30,26 @@ export interface SystemPromptPreset {
   createdAt: Date;
 }
 
-export interface AppSettings {
-  apiUrl: string;
+export type LLMServiceType = 'openai' | 'gemini' | 'custom';
+
+export interface LLMService {
+  id: string;
+  name: string;
+  type: LLMServiceType;
+  baseUrl: string;
   apiKey: string;
-  model: string;
-  customModels: string[];
+  models: string[];
+  defaultModel: string;
+  isBuiltIn: boolean;
+  isActive: boolean;
+  description?: string;
+  icon?: string;
+}
+
+export interface AppSettings {
+  services: LLMService[];
+  activeServiceId: string;
+  currentModel: string;
   systemPrompt: string;
   temperature: number;
   outputLength: number;

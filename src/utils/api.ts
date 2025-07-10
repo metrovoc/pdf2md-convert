@@ -1,4 +1,6 @@
 import { AppSettings, ConversionResponse } from '../types';
+import { callLLMService, createMessageContent } from './llmService';
+import { getActiveService } from './storage';
 
 export async function convertPdfToMarkdown(
   file: File,
@@ -16,64 +18,31 @@ export async function convertPdfToMarkdown(
       throw new Error('PDF转换失败：无法提取图像');
     }
 
-    // 构建包含多张图像的消息内容
-    const content = [
+    // 获取当前活跃的服务
+    const activeService = getActiveService(settings);
+    if (!activeService) {
+      throw new Error('未找到可用的LLM服务');
+    }
+
+    if (!activeService.apiKey) {
+      throw new Error(`请先配置 ${activeService.name} 的API密钥`);
+    }
+
+    // 构建消息内容
+    const content = createMessageContent(images, `PDF文档共${images.length}页：`);
+
+    // 使用统一的LLM服务调用接口
+    return await callLLMService(
+      activeService,
+      settings.systemPrompt,
+      content,
       {
-        type: 'text' as const,
-        text: `PDF文档共${images.length}页：`
-      },
-      ...images.map((imageBase64) => ({
-        type: 'image_url' as const,
-        image_url: {
-          url: `data:image/png;base64,${imageBase64}`,
-          detail: 'high' as const
-        }
-      }))
-    ];
-
-    const response = await fetch(`${settings.apiUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(settings.apiKey && { 'Authorization': `Bearer ${settings.apiKey}` }),
-      },
-      body: JSON.stringify({
-        model: settings.model,
-        messages: [
-          {
-            role: 'system',
-            content: settings.systemPrompt
-          },
-          {
-            role: 'user',
-            content
-          }
-        ],
         temperature: settings.temperature,
-        max_tokens: settings.outputLength,
-        stream: false
-      })
-    });
-
-    onProgress?.(80);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`API请求失败: ${response.status} ${response.statusText}\n${errorText}`);
-    }
-
-    const result = await response.json();
-    onProgress?.(95);
-
-    if (result.choices && result.choices[0] && result.choices[0].message) {
-      onProgress?.(100);
-      return {
-        success: true,
-        result: result.choices[0].message.content
-      };
-    } else {
-      throw new Error('API返回格式错误');
-    }
+        outputLength: settings.outputLength,
+        currentModel: settings.currentModel
+      },
+      onProgress
+    );
   } catch (error) {
     return {
       success: false,

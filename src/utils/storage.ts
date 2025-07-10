@@ -1,13 +1,54 @@
-import { AppSettings, SystemPromptPreset, ConversionJob, PersistedJobData } from "../types";
+import { AppSettings, SystemPromptPreset, ConversionJob, PersistedJobData, LLMService } from "../types";
 
 const STORAGE_KEY = "pdf2md-settings";
 const QUEUE_STORAGE_KEY = "pdf2md-queue";
 
+const builtInServices: LLMService[] = [
+  {
+    id: 'openrouter-gemini',
+    name: 'OpenRouter (Gemini 2.5 Pro)',
+    type: 'openai',
+    baseUrl: 'https://openrouter.ai/api/v1',
+    apiKey: '',
+    models: ['google/gemini-2.5-pro'],
+    defaultModel: 'google/gemini-2.5-pro',
+    isBuiltIn: true,
+    isActive: true,
+    description: '通过OpenRouter访问Google Gemini 2.5 Pro',
+    icon: '🤖'
+  },
+  {
+    id: 'gemini-direct',
+    name: 'Google Gemini',
+    type: 'gemini',
+    baseUrl: 'https://generativelanguage.googleapis.com',
+    apiKey: '',
+    models: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'],
+    defaultModel: 'gemini-2.5-flash',
+    isBuiltIn: true,
+    isActive: false,
+    description: '直接访问Google Gemini API',
+    icon: '✨'
+  },
+  {
+    id: 'openai-gpt4o',
+    name: 'OpenAI GPT-4o',
+    type: 'openai',
+    baseUrl: 'https://api.openai.com/v1',
+    apiKey: '',
+    models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'],
+    defaultModel: 'gpt-4o',
+    isBuiltIn: true,
+    isActive: false,
+    description: 'OpenAI GPT-4o 多模态模型',
+    icon: '🧠'
+  }
+];
+
 export const defaultSettings: AppSettings = {
-  apiUrl: "http://localhost:8000/v1",
-  apiKey: "",
-  model: "gemini-2.5-pro",
-  customModels: [],
+  services: [...builtInServices],
+  activeServiceId: 'openrouter-gemini',
+  currentModel: 'google/gemini-2.5-pro',
   systemPrompt: `你是一个专业的PDF文档分析助手。请将提供的PDF文档内容转换为清晰、结构化的Markdown格式。
 
 要求：
@@ -30,12 +71,40 @@ export function loadSettings(): AppSettings {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      return { ...defaultSettings, ...parsed };
+      // 确保内置服务存在且版本是最新的
+      const mergedServices = mergeServices(parsed.services || [], builtInServices);
+      return { 
+        ...defaultSettings, 
+        ...parsed,
+        services: mergedServices
+      };
     }
   } catch (error) {
     console.warn("加载设置失败，使用默认设置:", error);
   }
   return defaultSettings;
+}
+
+function mergeServices(storedServices: LLMService[], builtInServices: LLMService[]): LLMService[] {
+  const merged = [...builtInServices];
+  
+  // 保留用户的API密钥和自定义服务
+  storedServices.forEach(stored => {
+    const builtInIndex = merged.findIndex(builtin => builtin.id === stored.id);
+    if (builtInIndex >= 0) {
+      // 更新内置服务的API密钥，但保持其他配置为最新
+      merged[builtInIndex] = {
+        ...merged[builtInIndex],
+        apiKey: stored.apiKey,
+        isActive: stored.isActive
+      };
+    } else if (!stored.isBuiltIn) {
+      // 添加自定义服务
+      merged.push(stored);
+    }
+  });
+  
+  return merged;
 }
 
 export function saveSettings(settings: AppSettings): void {
@@ -151,4 +220,59 @@ export function clearPersistedQueue(): void {
 export function isJobRecoverable(persistedJob: PersistedJobData): boolean {
   // 只恢复未完成的任务，避免恢复处理中的任务（可能已经中断）
   return persistedJob.status === 'pending' || persistedJob.status === 'completed';
+}
+
+// LLM服务管理函数
+export function addCustomService(settings: AppSettings, service: Omit<LLMService, 'id' | 'isBuiltIn'>): AppSettings {
+  const newService: LLMService = {
+    ...service,
+    id: generatePresetId(),
+    isBuiltIn: false
+  };
+  
+  return {
+    ...settings,
+    services: [...settings.services, newService]
+  };
+}
+
+export function updateService(settings: AppSettings, serviceId: string, updates: Partial<LLMService>): AppSettings {
+  return {
+    ...settings,
+    services: settings.services.map(service =>
+      service.id === serviceId ? { ...service, ...updates } : service
+    )
+  };
+}
+
+export function removeService(settings: AppSettings, serviceId: string): AppSettings {
+  const newServices = settings.services.filter(service => service.id !== serviceId);
+  
+  return {
+    ...settings,
+    services: newServices,
+    // 如果删除的是当前活跃服务，切换到第一个可用服务
+    activeServiceId: settings.activeServiceId === serviceId 
+      ? (newServices.find(s => s.isActive) || newServices[0])?.id || 'openrouter-gemini'
+      : settings.activeServiceId
+  };
+}
+
+export function getActiveService(settings: AppSettings): LLMService | null {
+  return settings.services.find(service => service.id === settings.activeServiceId) || null;
+}
+
+export function switchActiveService(settings: AppSettings, serviceId: string): AppSettings {
+  const service = settings.services.find(s => s.id === serviceId);
+  if (!service) return settings;
+
+  return {
+    ...settings,
+    activeServiceId: serviceId,
+    currentModel: service.defaultModel,
+    services: settings.services.map(s => ({
+      ...s,
+      isActive: s.id === serviceId
+    }))
+  };
 }

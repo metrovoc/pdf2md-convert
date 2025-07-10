@@ -18,6 +18,7 @@ export async function convertPdfToMarkdown(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(settings.apiKey && { 'Authorization': `Bearer ${settings.apiKey}` }),
       },
       body: JSON.stringify({
         model: settings.model,

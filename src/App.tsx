@@ -1,31 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { JobQueue } from './components/JobQueue';
 import { Settings } from './components/Settings';
 import { useConversionQueue } from './hooks/useConversionQueue';
 import { downloadMarkdown } from './utils/api';
 import { AppSettings, ConversionJob } from './types';
+import { loadSettings, saveSettings } from './utils/storage';
 import { Play, Trash2, Download } from 'lucide-react';
 
-const defaultSettings: AppSettings = {
-  apiUrl: 'http://localhost:8000/v1',
-  model: 'gpt-4o',
-  systemPrompt: `你是一个专业的PDF文档分析助手。请将提供的PDF文档内容转换为清晰、结构化的Markdown格式。
-
-要求：
-1. 保持原文档的逻辑结构和层次关系
-2. 正确识别标题、段落、列表等元素
-3. 保留重要的格式信息
-4. 如果有表格，请用Markdown表格格式呈现
-5. 如果有代码块，请正确标记语言类型
-6. 移除页眉、页脚等冗余信息
-7. 确保输出的Markdown语法正确
-
-请直接输出转换后的Markdown内容，不要添加额外的说明文字。`
-};
-
 function App() {
-  const [settings, setSettings] = useState<AppSettings>(defaultSettings);
+  const [settings, setSettings] = useState<AppSettings>(loadSettings());
+
+  useEffect(() => {
+    saveSettings(settings);
+  }, [settings]);
   const {
     jobs,
     isProcessing,
@@ -135,7 +123,7 @@ function App() {
         </div>
 
         <div className="mt-6 text-center text-sm text-gray-500">
-          <p>支持的文件格式：PDF | 推荐模型：GPT-4o, Claude-3</p>
+          <p>支持的文件格式：PDF | 推荐模型：Gemini 2.5 Pro, GPT-4o</p>
         </div>
       </div>
     </div>

@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import { Settings as SettingsIcon, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Settings as SettingsIcon, X, Plus, Trash2, Wifi, WifiOff, Loader2 } from 'lucide-react';
 import { AppSettings } from '../types';
+import { testApiConnection, ApiTestResult } from '../utils/apiTest';
+import { defaultSettings } from '../utils/storage';
 
 interface SettingsProps {
   settings: AppSettings;
@@ -10,6 +12,9 @@ interface SettingsProps {
 export function Settings({ settings, onSettingsChange }: SettingsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [tempSettings, setTempSettings] = useState(settings);
+  const [apiTest, setApiTest] = useState<ApiTestResult | null>(null);
+  const [isTesting, setIsTesting] = useState(false);
+  const [newCustomModel, setNewCustomModel] = useState('');
 
   const handleSave = () => {
     onSettingsChange(tempSettings);
@@ -22,26 +27,41 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
   };
 
   const commonModels = [
-    'gpt-4o',
-    'gpt-4-turbo',
-    'claude-3-opus',
-    'claude-3-sonnet',
-    'llama-3-70b',
-    'mixtral-8x7b'
+    'gemini-2.5-pro',
+    'gpt-4o'
   ];
 
-  const defaultPrompt = `你是一个专业的PDF文档分析助手。请将提供的PDF文档内容转换为清晰、结构化的Markdown格式。
+  const allModels = [...commonModels, ...tempSettings.customModels];
 
-要求：
-1. 保持原文档的逻辑结构和层次关系
-2. 正确识别标题、段落、列表等元素
-3. 保留重要的格式信息
-4. 如果有表格，请用Markdown表格格式呈现
-5. 如果有代码块，请正确标记语言类型
-6. 移除页眉、页脚等冗余信息
-7. 确保输出的Markdown语法正确
+  useEffect(() => {
+    setTempSettings(settings);
+  }, [settings]);
 
-请直接输出转换后的Markdown内容，不要添加额外的说明文字。`;
+  const handleTestApi = async () => {
+    setIsTesting(true);
+    setApiTest(null);
+    const result = await testApiConnection(tempSettings);
+    setApiTest(result);
+    setIsTesting(false);
+  };
+
+  const handleAddCustomModel = () => {
+    if (newCustomModel.trim() && !allModels.includes(newCustomModel.trim())) {
+      setTempSettings({
+        ...tempSettings,
+        customModels: [...tempSettings.customModels, newCustomModel.trim()]
+      });
+      setNewCustomModel('');
+    }
+  };
+
+  const handleRemoveCustomModel = (modelToRemove: string) => {
+    setTempSettings({
+      ...tempSettings,
+      customModels: tempSettings.customModels.filter(model => model !== modelToRemove),
+      model: tempSettings.model === modelToRemove ? commonModels[0] : tempSettings.model
+    });
+  };
 
   return (
     <>
@@ -68,9 +88,23 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
 
             <div className="p-6 space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  VLLM API地址
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    API地址
+                  </label>
+                  <button
+                    onClick={handleTestApi}
+                    disabled={isTesting || !tempSettings.apiUrl}
+                    className="inline-flex items-center px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 rounded-md transition-colors"
+                  >
+                    {isTesting ? (
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                    ) : (
+                      <Wifi className="w-3 h-3 mr-1" />
+                    )}
+                    {isTesting ? '测试中...' : '测试连接'}
+                  </button>
+                </div>
                 <input
                   type="url"
                   value={tempSettings.apiUrl}
@@ -78,36 +112,97 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="http://localhost:8000/v1"
                 />
+                {apiTest && (
+                  <div className={`mt-2 p-2 rounded text-sm ${
+                    apiTest.success 
+                      ? 'bg-green-50 border border-green-200 text-green-700'
+                      : 'bg-red-50 border border-red-200 text-red-700'
+                  }`}>
+                    <div className="flex items-center">
+                      {apiTest.success ? (
+                        <Wifi className="w-4 h-4 mr-2" />
+                      ) : (
+                        <WifiOff className="w-4 h-4 mr-2" />
+                      )}
+                      {apiTest.success 
+                        ? `连接成功 (${apiTest.latency}ms)${apiTest.models?.length ? ` - 发现${apiTest.models.length}个模型` : ''}` 
+                        : apiTest.error
+                      }
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  模型名称
+                  API Key (可选)
                 </label>
-                <div className="space-y-2">
-                  <select
-                    value={commonModels.includes(tempSettings.model) ? tempSettings.model : 'custom'}
-                    onChange={(e) => {
-                      if (e.target.value !== 'custom') {
-                        setTempSettings({ ...tempSettings, model: e.target.value });
-                      }
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
+                <input
+                  type="password"
+                  value={tempSettings.apiKey}
+                  onChange={(e) => setTempSettings({ ...tempSettings, apiKey: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="输入API密钥"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  模型选择
+                </label>
+                <select
+                  value={tempSettings.model}
+                  onChange={(e) => setTempSettings({ ...tempSettings, model: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
+                >
+                  <optgroup label="推荐模型">
                     {commonModels.map(model => (
                       <option key={model} value={model}>{model}</option>
                     ))}
-                    <option value="custom">自定义模型</option>
-                  </select>
-                  
-                  {!commonModels.includes(tempSettings.model) && (
+                  </optgroup>
+                  {tempSettings.customModels.length > 0 && (
+                    <optgroup label="自定义模型">
+                      {tempSettings.customModels.map(model => (
+                        <option key={model} value={model}>{model}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+                
+                <div className="space-y-2">
+                  <div className="flex space-x-2">
                     <input
                       type="text"
-                      value={tempSettings.model}
-                      onChange={(e) => setTempSettings({ ...tempSettings, model: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="输入自定义模型名称"
+                      value={newCustomModel}
+                      onChange={(e) => setNewCustomModel(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleAddCustomModel()}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="添加自定义模型名称"
                     />
+                    <button
+                      onClick={handleAddCustomModel}
+                      disabled={!newCustomModel.trim() || allModels.includes(newCustomModel.trim())}
+                      className="px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 rounded-md transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  {tempSettings.customModels.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-gray-500">已添加的自定义模型：</p>
+                      {tempSettings.customModels.map(model => (
+                        <div key={model} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
+                          <span>{model}</span>
+                          <button
+                            onClick={() => handleRemoveCustomModel(model)}
+                            className="p-1 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
@@ -121,10 +216,10 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
                   onChange={(e) => setTempSettings({ ...tempSettings, systemPrompt: e.target.value })}
                   rows={12}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                  placeholder={defaultPrompt}
+                  placeholder={defaultSettings.systemPrompt}
                 />
                 <button
-                  onClick={() => setTempSettings({ ...tempSettings, systemPrompt: defaultPrompt })}
+                  onClick={() => setTempSettings({ ...tempSettings, systemPrompt: defaultSettings.systemPrompt })}
                   className="mt-2 text-sm text-blue-600 hover:text-blue-700 underline"
                 >
                   恢复默认提示词

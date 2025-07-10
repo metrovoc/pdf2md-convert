@@ -11,7 +11,9 @@ export interface ConversionJob {
 
 export interface AppSettings {
   apiUrl: string;
+  apiKey: string;
   model: string;
+  customModels: string[];
   systemPrompt: string;
 }
 

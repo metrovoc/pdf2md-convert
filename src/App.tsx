@@ -291,6 +291,23 @@ function App() {
         <div className="mt-6 text-center text-sm text-gray-500">
           <p>支持的文件格式：PDF | 推荐模型：Gemini 2.5 Pro, GPT-4o</p>
         </div>
+        
+        <div className="mt-4 text-center">
+          <a
+            href="https://github.com/metrovoc/pdf2md-convert"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center text-gray-500 hover:text-gray-700 transition-colors"
+            title="在GitHub上查看源代码"
+          >
+            <img
+              src="/assets/github.svg"
+              alt="GitHub"
+              className="w-5 h-5 mr-2"
+            />
+            GitHub
+          </a>
+        </div>
       </div>
     </div>
   );

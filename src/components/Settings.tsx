@@ -1,17 +1,24 @@
-import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, X, Plus, Save, Edit3, Download } from 'lucide-react';
-import { AppSettings, SystemPromptPreset, LLMService } from '../types';
-import { ServiceCard } from './ServiceCard';
-import { 
-  defaultSettings, 
-  createSystemPromptPreset, 
-  addSystemPromptPreset, 
-  removeSystemPromptPreset, 
+import { useState, useEffect } from "react";
+import {
+  Settings as SettingsIcon,
+  X,
+  Plus,
+  Save,
+  Edit3,
+  Download,
+} from "lucide-react";
+import { AppSettings, SystemPromptPreset, LLMService } from "../types";
+import { ServiceCard } from "./ServiceCard";
+import {
+  defaultSettings,
+  createSystemPromptPreset,
+  addSystemPromptPreset,
+  removeSystemPromptPreset,
   updateSystemPromptPreset,
   updateService,
   addCustomService,
-  switchActiveService
-} from '../utils/storage';
+  switchActiveService,
+} from "../utils/storage";
 
 interface SettingsProps {
   settings: AppSettings;
@@ -21,25 +28,32 @@ interface SettingsProps {
 export function Settings({ settings, onSettingsChange }: SettingsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [tempSettings, setTempSettings] = useState(settings);
-  const [newPresetName, setNewPresetName] = useState('');
+  const [newPresetName, setNewPresetName] = useState("");
   const [isCreatingPreset, setIsCreatingPreset] = useState(false);
   const [editingPreset, setEditingPreset] = useState<string | null>(null);
   const [isAddingCustomService, setIsAddingCustomService] = useState(false);
+  const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] =
+    useState(false);
   const [newCustomService, setNewCustomService] = useState<{
     name: string;
-    type: 'openai' | 'gemini';
+    type: "openai" | "gemini";
     baseUrl: string;
     apiKey: string;
     defaultModel: string;
     description: string;
   }>({
-    name: '',
-    type: 'openai',
-    baseUrl: '',
-    apiKey: '',
-    defaultModel: '',
-    description: ''
+    name: "",
+    type: "openai",
+    baseUrl: "",
+    apiKey: "",
+    defaultModel: "",
+    description: "",
   });
+
+  // Check if settings have been modified
+  const hasUnsavedChanges = () => {
+    return JSON.stringify(tempSettings) !== JSON.stringify(settings);
+  };
 
   const handleSave = () => {
     onSettingsChange(tempSettings);
@@ -51,11 +65,31 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
     setIsOpen(false);
   };
 
+  const handleClose = () => {
+    if (hasUnsavedChanges()) {
+      setShowUnsavedChangesDialog(true);
+    } else {
+      setIsOpen(false);
+    }
+  };
+
+  const handleConfirmClose = (shouldSave: boolean) => {
+    setShowUnsavedChangesDialog(false);
+    if (shouldSave) {
+      handleSave();
+    } else {
+      handleCancel();
+    }
+  };
+
   useEffect(() => {
     setTempSettings(settings);
   }, [settings]);
 
-  const handleServiceUpdate = (serviceId: string, updates: Partial<LLMService>) => {
+  const handleServiceUpdate = (
+    serviceId: string,
+    updates: Partial<LLMService>
+  ) => {
     setTempSettings(updateService(tempSettings, serviceId, updates));
   };
 
@@ -66,15 +100,18 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
   const handleModelChange = (model: string) => {
     setTempSettings({
       ...tempSettings,
-      currentModel: model
+      currentModel: model,
     });
   };
 
   const handleCreatePreset = () => {
     if (newPresetName.trim() && tempSettings.systemPrompt.trim()) {
-      const preset = createSystemPromptPreset(newPresetName.trim(), tempSettings.systemPrompt);
+      const preset = createSystemPromptPreset(
+        newPresetName.trim(),
+        tempSettings.systemPrompt
+      );
       setTempSettings(addSystemPromptPreset(tempSettings, preset));
-      setNewPresetName('');
+      setNewPresetName("");
       setIsCreatingPreset(false);
     }
   };
@@ -86,35 +123,40 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
   const handleLoadPreset = (preset: SystemPromptPreset) => {
     setTempSettings({
       ...tempSettings,
-      systemPrompt: preset.prompt
+      systemPrompt: preset.prompt,
     });
   };
 
   const handleUpdatePreset = (presetId: string, newName: string) => {
-    setTempSettings(updateSystemPromptPreset(tempSettings, presetId, { name: newName.trim() }));
+    setTempSettings(
+      updateSystemPromptPreset(tempSettings, presetId, { name: newName.trim() })
+    );
     setEditingPreset(null);
   };
 
   const handleAddCustomService = () => {
-    if (newCustomService.name && newCustomService.baseUrl && newCustomService.defaultModel) {
+    if (
+      newCustomService.name &&
+      newCustomService.baseUrl &&
+      newCustomService.defaultModel
+    ) {
       const serviceToAdd = {
         ...newCustomService,
         models: [newCustomService.defaultModel],
-        isActive: false
+        isActive: false,
       };
       setTempSettings(addCustomService(tempSettings, serviceToAdd));
       setNewCustomService({
-        name: '',
-        type: 'openai',
-        baseUrl: '',
-        apiKey: '',
-        defaultModel: '',
-        description: ''
+        name: "",
+        type: "openai",
+        baseUrl: "",
+        apiKey: "",
+        defaultModel: "",
+        description: "",
       });
       setIsAddingCustomService(false);
     }
   };
-
 
   return (
     <>
@@ -132,7 +174,7 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-lg font-semibold text-gray-900">设置</h2>
               <button
-                onClick={handleCancel}
+                onClick={handleClose}
                 className="p-1 text-gray-400 hover:text-gray-600 rounded"
               >
                 <X className="w-5 h-5" />
@@ -143,7 +185,9 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
               {/* LLM服务管理 */}
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-medium text-gray-900">LLM服务配置</h3>
+                  <h3 className="text-lg font-medium text-gray-900">
+                    LLM服务配置
+                  </h3>
                   <button
                     onClick={() => setIsAddingCustomService(true)}
                     className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
@@ -170,18 +214,30 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
                 {/* 添加自定义服务表单 */}
                 {isAddingCustomService && (
                   <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <h4 className="font-medium text-blue-900 mb-3">添加自定义LLM服务</h4>
+                    <h4 className="font-medium text-blue-900 mb-3">
+                      添加自定义LLM服务
+                    </h4>
                     <div className="grid grid-cols-2 gap-4">
                       <input
                         type="text"
                         placeholder="服务名称"
                         value={newCustomService.name}
-                        onChange={(e) => setNewCustomService({ ...newCustomService, name: e.target.value })}
+                        onChange={(e) =>
+                          setNewCustomService({
+                            ...newCustomService,
+                            name: e.target.value,
+                          })
+                        }
                         className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                       />
                       <select
                         value={newCustomService.type}
-                        onChange={(e) => setNewCustomService({ ...newCustomService, type: e.target.value as 'openai' | 'gemini' })}
+                        onChange={(e) =>
+                          setNewCustomService({
+                            ...newCustomService,
+                            type: e.target.value as "openai" | "gemini",
+                          })
+                        }
                         className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                       >
                         <option value="openai">OpenAI兼容</option>
@@ -191,28 +247,47 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
                         type="url"
                         placeholder="Base URL"
                         value={newCustomService.baseUrl}
-                        onChange={(e) => setNewCustomService({ ...newCustomService, baseUrl: e.target.value })}
+                        onChange={(e) =>
+                          setNewCustomService({
+                            ...newCustomService,
+                            baseUrl: e.target.value,
+                          })
+                        }
                         className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                       />
                       <input
                         type="text"
                         placeholder="默认模型"
                         value={newCustomService.defaultModel}
-                        onChange={(e) => setNewCustomService({ ...newCustomService, defaultModel: e.target.value })}
+                        onChange={(e) =>
+                          setNewCustomService({
+                            ...newCustomService,
+                            defaultModel: e.target.value,
+                          })
+                        }
                         className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                       />
                       <input
                         type="text"
                         placeholder="描述（可选）"
                         value={newCustomService.description}
-                        onChange={(e) => setNewCustomService({ ...newCustomService, description: e.target.value })}
+                        onChange={(e) =>
+                          setNewCustomService({
+                            ...newCustomService,
+                            description: e.target.value,
+                          })
+                        }
                         className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm col-span-2"
                       />
                     </div>
                     <div className="flex items-center space-x-2 mt-3">
                       <button
                         onClick={handleAddCustomService}
-                        disabled={!newCustomService.name || !newCustomService.baseUrl || !newCustomService.defaultModel}
+                        disabled={
+                          !newCustomService.name ||
+                          !newCustomService.baseUrl ||
+                          !newCustomService.defaultModel
+                        }
                         className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 rounded-md transition-colors"
                       >
                         添加服务
@@ -230,7 +305,9 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
 
               {/* 生成参数配置 */}
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">生成参数</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  生成参数
+                </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -242,13 +319,20 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
                       max="2"
                       step="0.1"
                       value={tempSettings.temperature}
-                      onChange={(e) => setTempSettings({ ...tempSettings, temperature: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) =>
+                        setTempSettings({
+                          ...tempSettings,
+                          temperature: parseFloat(e.target.value) || 0,
+                        })
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="0"
                     />
-                    <p className="text-xs text-gray-500 mt-1">控制输出的随机性 (0-2)</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      控制输出的随机性 (0-2)
+                    </p>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       输出长度限制
@@ -259,11 +343,18 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
                       max="131072"
                       step="1024"
                       value={tempSettings.outputLength}
-                      onChange={(e) => setTempSettings({ ...tempSettings, outputLength: parseInt(e.target.value) || 65536 })}
+                      onChange={(e) =>
+                        setTempSettings({
+                          ...tempSettings,
+                          outputLength: parseInt(e.target.value) || 65536,
+                        })
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="65536"
                     />
-                    <p className="text-xs text-gray-500 mt-1">最大输出token数</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      最大输出token数
+                    </p>
                   </div>
                 </div>
               </div>
@@ -287,23 +378,38 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
                 {tempSettings.systemPromptPresets.length > 0 && (
                   <div className="mb-3 p-3 bg-gray-50 rounded-md">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700">快速加载预设</span>
+                      <span className="text-sm font-medium text-gray-700">
+                        快速加载预设
+                      </span>
                     </div>
                     <div className="grid grid-cols-1 gap-2">
                       {tempSettings.systemPromptPresets.map((preset) => (
-                        <div key={preset.id} className="flex items-center justify-between p-2 bg-white rounded border">
+                        <div
+                          key={preset.id}
+                          className="flex items-center justify-between p-2 bg-white rounded border"
+                        >
                           <div className="flex-1">
                             {editingPreset === preset.id ? (
                               <input
                                 type="text"
                                 defaultValue={preset.name}
-                                onBlur={(e) => handleUpdatePreset(preset.id, e.target.value)}
-                                onKeyPress={(e) => e.key === 'Enter' && handleUpdatePreset(preset.id, e.currentTarget.value)}
+                                onBlur={(e) =>
+                                  handleUpdatePreset(preset.id, e.target.value)
+                                }
+                                onKeyPress={(e) =>
+                                  e.key === "Enter" &&
+                                  handleUpdatePreset(
+                                    preset.id,
+                                    e.currentTarget.value
+                                  )
+                                }
                                 className="text-sm font-medium text-gray-900 bg-transparent border-none outline-none focus:bg-gray-50 px-1 py-0.5 rounded"
                                 autoFocus
                               />
                             ) : (
-                              <span className="text-sm font-medium text-gray-900">{preset.name}</span>
+                              <span className="text-sm font-medium text-gray-900">
+                                {preset.name}
+                              </span>
                             )}
                           </div>
                           <div className="flex items-center space-x-1">
@@ -356,7 +462,7 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
                       <button
                         onClick={() => {
                           setIsCreatingPreset(false);
-                          setNewPresetName('');
+                          setNewPresetName("");
                         }}
                         className="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
                       >
@@ -368,14 +474,24 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
 
                 <textarea
                   value={tempSettings.systemPrompt}
-                  onChange={(e) => setTempSettings({ ...tempSettings, systemPrompt: e.target.value })}
+                  onChange={(e) =>
+                    setTempSettings({
+                      ...tempSettings,
+                      systemPrompt: e.target.value,
+                    })
+                  }
                   rows={12}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                   placeholder={defaultSettings.systemPrompt}
                 />
                 <div className="flex space-x-4 mt-2">
                   <button
-                    onClick={() => setTempSettings({ ...tempSettings, systemPrompt: defaultSettings.systemPrompt })}
+                    onClick={() =>
+                      setTempSettings({
+                        ...tempSettings,
+                        systemPrompt: defaultSettings.systemPrompt,
+                      })
+                    }
                     className="text-sm text-blue-600 hover:text-blue-700 underline"
                   >
                     恢复默认提示词
@@ -392,13 +508,47 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
 
             <div className="flex justify-end space-x-3 p-6 border-t border-gray-200">
               <button
-                onClick={handleCancel}
+                onClick={handleClose}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
               >
                 取消
               </button>
               <button
                 onClick={handleSave}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+              >
+                保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unsaved Changes Confirmation Dialog */}
+      {showUnsavedChangesDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[1000]">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              未保存的更改
+            </h3>
+            <p className="text-gray-600 mb-6">
+              您有未保存的设置更改。是否要保存这些更改？
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowUnsavedChangesDialog(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => handleConfirmClose(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+              >
+                不保存
+              </button>
+              <button
+                onClick={() => handleConfirmClose(true)}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
               >
                 保存

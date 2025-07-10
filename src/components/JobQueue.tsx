@@ -1,5 +1,7 @@
 import { CheckCircle, XCircle, Clock, Loader2, Download } from 'lucide-react';
 import { ConversionJob } from '../types';
+import { formatDuration, formatRealTimeDuration } from '../utils/timeUtils';
+import { useState, useEffect } from 'react';
 
 interface JobQueueProps {
   jobs: ConversionJob[];
@@ -8,6 +10,16 @@ interface JobQueueProps {
 }
 
 export function JobQueue({ jobs, onDownload, onRemove }: JobQueueProps) {
+  const [, setTick] = useState(0);
+  
+  // 每秒更新一次用于实时显示运行时间
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTick(prev => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+  
   const getStatusIcon = (status: ConversionJob['status']) => {
     switch (status) {
       case 'pending':
@@ -61,6 +73,16 @@ export function JobQueue({ jobs, onDownload, onRemove }: JobQueueProps) {
                   {job.status === 'processing' && (
                     <span className="text-xs text-blue-600">
                       {job.progress}%
+                    </span>
+                  )}
+                  {job.status === 'processing' && job.startTime && (
+                    <span className="text-xs text-blue-600">
+                      {formatRealTimeDuration(job.startTime)}
+                    </span>
+                  )}
+                  {(job.status === 'completed' || job.status === 'error') && job.duration && (
+                    <span className="text-xs text-gray-500">
+                      用时: {formatDuration(job.duration)}
                     </span>
                   )}
                 </div>

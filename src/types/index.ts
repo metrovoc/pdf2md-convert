@@ -8,6 +8,9 @@ export interface ConversionJob {
   error?: string;
   createdAt: Date;
   lastUpdated: Date;
+  startTime?: Date;
+  endTime?: Date;
+  duration?: number; // 毫秒
 }
 
 export interface PersistedJobData {
@@ -19,6 +22,9 @@ export interface PersistedJobData {
   error?: string;
   createdAt: string;
   lastUpdated: string;
+  startTime?: string;
+  endTime?: string;
+  duration?: number;
   fileSize: number;
   fileType: string;
 }

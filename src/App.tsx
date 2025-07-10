@@ -9,6 +9,7 @@ import { useBeforeUnload } from "./hooks/useBeforeUnload";
 import { downloadMarkdown } from "./utils/api";
 import { AppSettings, ConversionJob } from "./types";
 import { loadSettings, saveSettings, getActiveService } from "./utils/storage";
+import { formatDuration } from "./utils/timeUtils";
 import {
   Play,
   Trash2,
@@ -18,11 +19,14 @@ import {
   X,
   WifiOff,
   Wifi,
+  Clock,
 } from "lucide-react";
 
 function App() {
   const [settings, setSettings] = useState<AppSettings>(loadSettings());
   const { isVisible, isOnline } = usePageVisibility();
+  const [queueStartTime, setQueueStartTime] = useState<Date | null>(null);
+  const [, setTick] = useState(0);
 
   useEffect(() => {
     saveSettings(settings);
@@ -67,6 +71,11 @@ function App() {
   const processingCount = jobs.filter(
     (job) => job.status === "processing"
   ).length;
+  
+  // 计算队列总计时
+  const totalDuration = jobs.reduce((sum, job) => {
+    return sum + (job.duration || 0);
+  }, 0);
 
   const activeService = getActiveService(settings);
   const hasValidService = activeService && activeService.apiKey;
@@ -81,6 +90,23 @@ function App() {
       console.warn("网络连接断开，转换任务可能会失败");
     }
   }, [isOnline, isProcessing]);
+  
+  // 跟踪队列处理状态
+  useEffect(() => {
+    if (isProcessing && !queueStartTime) {
+      setQueueStartTime(new Date());
+    } else if (!isProcessing && queueStartTime) {
+      setQueueStartTime(null);
+    }
+  }, [isProcessing, queueStartTime]);
+  
+  // 每秒更新一次用于实时显示运行时间
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTick(prev => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -247,6 +273,13 @@ function App() {
                     <Play className="w-4 h-4 mr-2" />
                     {isProcessing ? "处理中..." : `开始转换 (${pendingCount})`}
                   </button>
+                  
+                  {isProcessing && queueStartTime && (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Clock className="w-4 h-4 mr-1" />
+                      <span>队列用时: {formatDuration(Date.now() - queueStartTime.getTime())}</span>
+                    </div>
+                  )}
 
                   {completedCount > 0 && (
                     <button
@@ -256,6 +289,13 @@ function App() {
                       <Download className="w-4 h-4 mr-2" />
                       下载全部 ({completedCount})
                     </button>
+                  )}
+                  
+                  {totalDuration > 0 && (
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Clock className="w-4 h-4 mr-1" />
+                      <span>总用时: {formatDuration(totalDuration)}</span>
+                    </div>
                   )}
                 </div>
 

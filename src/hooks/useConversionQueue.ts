@@ -53,7 +53,14 @@ export function useConversionQueue() {
     const pendingJobs = jobs.filter(job => job.status === 'pending');
     
     for (const job of pendingJobs) {
-      updateJob(job.id, { status: 'processing', progress: 0 });
+      const startTime = new Date();
+      updateJob(job.id, { 
+        status: 'processing', 
+        progress: 0,
+        startTime,
+        endTime: undefined,
+        duration: undefined
+      });
       
       const result = await convertPdfToMarkdown(
         job.file,
@@ -61,17 +68,24 @@ export function useConversionQueue() {
         (progress) => updateJob(job.id, { progress })
       );
       
+      const endTime = new Date();
+      const duration = endTime.getTime() - startTime.getTime();
+      
       if (result.success) {
         updateJob(job.id, {
           status: 'completed',
           progress: 100,
-          result: result.result
+          result: result.result,
+          endTime,
+          duration
         });
       } else {
         updateJob(job.id, {
           status: 'error',
           progress: 0,
-          error: result.error
+          error: result.error,
+          endTime,
+          duration
         });
       }
     }
@@ -106,7 +120,10 @@ export function useConversionQueue() {
         file: new File([], persistedJob.filename, {
           type: persistedJob.fileType,
           lastModified: new Date(persistedJob.createdAt).getTime()
-        })
+        }),
+        startTime: persistedJob.startTime ? new Date(persistedJob.startTime) : undefined,
+        endTime: persistedJob.endTime ? new Date(persistedJob.endTime) : undefined,
+        duration: persistedJob.duration
       }));
       
       setJobs(recoveredJobs);

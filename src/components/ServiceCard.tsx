@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { LLMService, AppSettings } from '../types';
 import { Edit3, Check, X, Key, Globe, Cpu, ChevronDown, ChevronUp } from 'lucide-react';
+import { ServiceIcon } from './ServiceIcon';
 
 interface ServiceCardProps {
   service: LLMService;
@@ -50,7 +51,11 @@ export function ServiceCard({
         onClick={() => onServiceSelect(service.id)}
       >
         <div className="flex items-center space-x-3">
-          <span className="text-2xl">{service.icon}</span>
+          <ServiceIcon 
+            iconPath={service.iconPath}
+            className="w-8 h-8"
+            fallback="🤖"
+          />
           <div>
             <h3 className="font-medium text-gray-900">{service.name}</h3>
             <p className="text-xs text-gray-500">{service.description}</p>

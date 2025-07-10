@@ -32,15 +32,13 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
     apiKey: string;
     defaultModel: string;
     description: string;
-    icon: string;
   }>({
     name: '',
     type: 'openai',
     baseUrl: '',
     apiKey: '',
     defaultModel: '',
-    description: '',
-    icon: '🤖'
+    description: ''
   });
 
   const handleSave = () => {
@@ -111,8 +109,7 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
         baseUrl: '',
         apiKey: '',
         defaultModel: '',
-        description: '',
-        icon: '🤖'
+        description: ''
       });
       setIsAddingCustomService(false);
     }
@@ -209,14 +206,7 @@ export function Settings({ settings, onSettingsChange }: SettingsProps) {
                         placeholder="描述（可选）"
                         value={newCustomService.description}
                         onChange={(e) => setNewCustomService({ ...newCustomService, description: e.target.value })}
-                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                      />
-                      <input
-                        type="text"
-                        placeholder="图标 emoji"
-                        value={newCustomService.icon}
-                        onChange={(e) => setNewCustomService({ ...newCustomService, icon: e.target.value })}
-                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm col-span-2"
                       />
                     </div>
                     <div className="flex items-center space-x-2 mt-3">

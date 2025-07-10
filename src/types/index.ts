@@ -43,7 +43,7 @@ export interface LLMService {
   isBuiltIn: boolean;
   isActive: boolean;
   description?: string;
-  icon?: string;
+  iconPath?: string;
 }
 
 export interface AppSettings {

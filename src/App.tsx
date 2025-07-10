@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { JobQueue } from './components/JobQueue';
 import { Settings } from './components/Settings';
+import { ServiceIcon } from './components/ServiceIcon';
 import { useConversionQueue } from './hooks/useConversionQueue';
 import { usePageVisibility } from './hooks/usePageVisibility';
 import { useBeforeUnload } from './hooks/useBeforeUnload';
@@ -143,7 +144,11 @@ function App() {
                     <div className="flex items-center space-x-2 text-sm">
                       <span className="text-gray-500">当前服务:</span>
                       <div className="flex items-center space-x-1">
-                        <span>{activeService.icon}</span>
+                        <ServiceIcon 
+                          iconPath={activeService.iconPath}
+                          className="w-4 h-4"
+                          fallback="🤖"
+                        />
                         <span className="font-medium text-gray-700">{activeService.name}</span>
                         <div className={`w-2 h-2 rounded-full ${hasValidService ? 'bg-green-500' : 'bg-red-500'}`} 
                              title={hasValidService ? 'API密钥已配置' : 'API密钥未配置'} />

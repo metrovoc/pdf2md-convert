@@ -34,16 +34,12 @@ function App() {
     const completedJobs = jobs.filter(job => job.status === 'completed' && job.result);
     if (completedJobs.length === 0) return;
 
-    if (completedJobs.length === 1) {
-      handleDownload(completedJobs[0]);
-      return;
-    }
-
-    const allContent = completedJobs
-      .map(job => `# ${job.filename}\n\n${job.result}`)
-      .join('\n\n---\n\n');
-    
-    downloadMarkdown('批量转换结果.md', allContent);
+    // 逐个下载每个文件
+    completedJobs.forEach((job, index) => {
+      setTimeout(() => {
+        handleDownload(job);
+      }, index * 200); // 间隔200ms避免浏览器阻止多个下载
+    });
   };
 
   const pendingCount = jobs.filter(job => job.status === 'pending').length;

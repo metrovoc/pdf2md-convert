@@ -20,7 +20,7 @@ export async function convertPdfToMarkdown(
     const content = [
       {
         type: 'text' as const,
-        text: `请将这个PDF文档转换为清晰、结构化的Markdown格式。PDF共有${images.length}页，请按页面顺序处理并合并为一个完整的Markdown文档。`
+        text: `PDF文档共${images.length}页：`
       },
       ...images.map((imageBase64) => ({
         type: 'image_url' as const,

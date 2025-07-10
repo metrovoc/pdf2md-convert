@@ -1,7 +1,16 @@
-import { useState } from 'react';
-import { LLMService, AppSettings } from '../types';
-import { Edit3, Check, X, Key, Globe, Cpu, ChevronDown, ChevronUp } from 'lucide-react';
-import { ServiceIcon } from './ServiceIcon';
+import { useState } from "react";
+import { LLMService, AppSettings } from "../types";
+import {
+  Edit3,
+  Check,
+  X,
+  Key,
+  Globe,
+  Cpu,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
+import { ServiceIcon } from "./ServiceIcon";
 
 interface ServiceCardProps {
   service: LLMService;
@@ -12,13 +21,13 @@ interface ServiceCardProps {
   onModelChange: (model: string) => void;
 }
 
-export function ServiceCard({ 
-  service, 
-  isActive, 
+export function ServiceCard({
+  service,
+  isActive,
   settings,
-  onServiceUpdate, 
-  onServiceSelect, 
-  onModelChange 
+  onServiceUpdate,
+  onServiceSelect,
+  onModelChange,
 }: ServiceCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -38,37 +47,43 @@ export function ServiceCard({
   const hasApiKey = Boolean(service.apiKey);
 
   return (
-    <div className={`
+    <div
+      className={`
       border rounded-lg p-4 transition-all duration-200 cursor-pointer
-      ${isActive 
-        ? 'border-blue-500 bg-blue-50 shadow-md' 
-        : 'border-gray-200 bg-white hover:border-gray-300'
+      ${
+        isActive
+          ? "border-blue-500 bg-blue-50 shadow-md"
+          : "border-gray-200 bg-white hover:border-gray-300"
       }
-    `}>
+    `}
+    >
       {/* 卡片头部 */}
-      <div 
+      <div
         className="flex items-center justify-between"
         onClick={() => onServiceSelect(service.id)}
       >
         <div className="flex items-center space-x-3">
-          <ServiceIcon 
+          <ServiceIcon
             iconPath={service.iconPath}
             className="w-8 h-8"
-            fallback="🤖"
+            fallback="/assets/custom.svg"
           />
           <div>
             <h3 className="font-medium text-gray-900">{service.name}</h3>
             <p className="text-xs text-gray-500">{service.description}</p>
           </div>
         </div>
-        
+
         <div className="flex items-center space-x-2">
           {/* API密钥状态指示器 */}
-          <div className={`
+          <div
+            className={`
             w-2 h-2 rounded-full
-            ${hasApiKey ? 'bg-green-500' : 'bg-gray-300'}
-          `} title={hasApiKey ? 'API密钥已配置' : 'API密钥未配置'} />
-          
+            ${hasApiKey ? "bg-green-500" : "bg-gray-300"}
+          `}
+            title={hasApiKey ? "API密钥已配置" : "API密钥未配置"}
+          />
+
           {/* 展开/收起按钮 */}
           <button
             onClick={(e) => {
@@ -111,9 +126,13 @@ export function ServiceCard({
                 <input
                   type="password"
                   value={isEditing ? editedService.apiKey : service.apiKey}
-                  onChange={(e) => isEditing 
-                    ? setEditedService({ ...editedService, apiKey: e.target.value })
-                    : onServiceUpdate(service.id, { apiKey: e.target.value })
+                  onChange={(e) =>
+                    isEditing
+                      ? setEditedService({
+                          ...editedService,
+                          apiKey: e.target.value,
+                        })
+                      : onServiceUpdate(service.id, { apiKey: e.target.value })
                   }
                   placeholder="输入API密钥"
                   className="w-full px-3 py-2 pl-8 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
@@ -156,11 +175,16 @@ export function ServiceCard({
                     <input
                       type="text"
                       value={editedService.name}
-                      onChange={(e) => setEditedService({ ...editedService, name: e.target.value })}
+                      onChange={(e) =>
+                        setEditedService({
+                          ...editedService,
+                          name: e.target.value,
+                        })
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Base URL
@@ -168,7 +192,12 @@ export function ServiceCard({
                     <input
                       type="url"
                       value={editedService.baseUrl}
-                      onChange={(e) => setEditedService({ ...editedService, baseUrl: e.target.value })}
+                      onChange={(e) =>
+                        setEditedService({
+                          ...editedService,
+                          baseUrl: e.target.value,
+                        })
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     />
                   </div>
@@ -180,7 +209,12 @@ export function ServiceCard({
                     <input
                       type="text"
                       value={editedService.defaultModel}
-                      onChange={(e) => setEditedService({ ...editedService, defaultModel: e.target.value })}
+                      onChange={(e) =>
+                        setEditedService({
+                          ...editedService,
+                          defaultModel: e.target.value,
+                        })
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     />
                   </div>

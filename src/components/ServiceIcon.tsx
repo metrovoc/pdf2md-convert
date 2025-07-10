@@ -84,9 +84,7 @@ export function ServiceIcon({
 
   // Show emoji fallback if both failed or fallback is not SVG
   if (error || !iconPath) {
-    const displayFallback = fallback?.endsWith(".svg")
-      ? "🤖"
-      : fallback || "🤖";
+    const displayFallback = fallback?.endsWith(".svg") ? " " : fallback || " ";
     return (
       <div className={`${className} flex items-center justify-center text-lg`}>
         {displayFallback}

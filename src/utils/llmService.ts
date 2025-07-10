@@ -102,9 +102,10 @@ async function callOpenAIService(
 
   if (result.choices && result.choices[0] && result.choices[0].message) {
     onProgress?.(100);
+    const rawContent = result.choices[0].message.content;
     return {
       success: true,
-      result: result.choices[0].message.content
+      result: extractMarkdownContent(rawContent)
     };
   } else {
     throw new Error('API返回格式错误');
@@ -183,14 +184,67 @@ async function callGeminiService(
     
     if (textParts.length > 0) {
       onProgress?.(100);
+      const rawContent = textParts.join('');
       return {
         success: true,
-        result: textParts.join('')
+        result: extractMarkdownContent(rawContent)
       };
     }
   }
 
   throw new Error('Gemini API返回格式错误');
+}
+
+/**
+ * 从LLM响应中提取和清理markdown内容
+ */
+export function extractMarkdownContent(rawResponse: string): string {
+  if (!rawResponse || typeof rawResponse !== 'string') {
+    return '';
+  }
+
+  let content = rawResponse.trim();
+  
+  // 检测并提取```markdown```代码块
+  const markdownBlockRegex = /```markdown\s*\n([\s\S]*?)\n```/i;
+  const match = content.match(markdownBlockRegex);
+  
+  if (match && match[1]) {
+    content = match[1].trim();
+  } else {
+    // 检测其他可能的代码块格式
+    const genericBlockRegex = /```\s*\n([\s\S]*?)\n```/;
+    const genericMatch = content.match(genericBlockRegex);
+    
+    if (genericMatch && genericMatch[1]) {
+      // 只有当代码块内容看起来像markdown时才提取
+      const blockContent = genericMatch[1].trim();
+      if (looksLikeMarkdown(blockContent)) {
+        content = blockContent;
+      }
+    }
+  }
+  
+  // 清理多余的空行
+  content = content.replace(/\n\s*\n\s*\n/g, '\n\n');
+  
+  return content.trim();
+}
+
+/**
+ * 判断文本内容是否看起来像markdown
+ */
+function looksLikeMarkdown(content: string): boolean {
+  const markdownFeatures = [
+    /^#{1,6}\s+/m,           // 标题
+    /^\*\s+/m,               // 无序列表
+    /^\d+\.\s+/m,            // 有序列表
+    /\*\*.*?\*\*/,           // 粗体
+    /\[.*?\]\(.*?\)/,        // 链接
+    /^\|.*?\|/m,             // 表格
+  ];
+  
+  return markdownFeatures.some(regex => regex.test(content));
 }
 
 export function createMessageContent(images: string[], text: string): MessageContent[] {

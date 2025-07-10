@@ -86,29 +86,75 @@ async function callOpenAIService(
       messages,
       temperature: settings.temperature,
       max_tokens: settings.outputLength,
-      stream: false
+      stream: true
     })
   });
 
-  onProgress?.(80);
+  onProgress?.(50);
 
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`API请求失败: ${response.status} ${response.statusText}\n${errorText}`);
   }
 
-  const result = await response.json();
+  // 处理流式响应
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error('无法读取响应流');
+  }
+
+  const decoder = new TextDecoder();
+  let streamContent = '';
+  let totalTokens = 0;
+  const estimatedTokens = settings.outputLength || 4000;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          
+          if (data === '[DONE]') {
+            break;
+          }
+
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content) {
+              const deltaContent = parsed.choices[0].delta.content;
+              streamContent += deltaContent;
+              totalTokens += deltaContent.length;
+              
+              // 更新进度：基于接收到的内容量
+              const progress = Math.min(95, 50 + (totalTokens / estimatedTokens) * 45);
+              onProgress?.(progress);
+            }
+          } catch (e) {
+            // 忽略解析错误，继续处理
+          }
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
   onProgress?.(95);
 
-  if (result.choices && result.choices[0] && result.choices[0].message) {
+  if (streamContent) {
     onProgress?.(100);
-    const rawContent = result.choices[0].message.content;
     return {
       success: true,
-      result: extractMarkdownContent(rawContent)
+      result: extractMarkdownContent(streamContent)
     };
   } else {
-    throw new Error('API返回格式错误');
+    throw new Error('API返回内容为空');
   }
 }
 
@@ -167,29 +213,40 @@ async function callGeminiService(
     })
   });
 
-  onProgress?.(80);
+  onProgress?.(50);
 
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`Gemini API请求失败: ${response.status} ${response.statusText}\n${errorText}`);
   }
 
-  const result = await response.json();
-  onProgress?.(95);
+  // 模拟进度更新，因为Gemini的标准API不支持流式传输
+  const progressInterval = setInterval(() => {
+    onProgress?.(50 + Math.random() * 40);
+  }, 500);
 
-  if (result.candidates && result.candidates[0] && result.candidates[0].content && result.candidates[0].content.parts) {
-    const textParts = result.candidates[0].content.parts
-      .filter((part: any) => part.text)
-      .map((part: any) => part.text);
-    
-    if (textParts.length > 0) {
-      onProgress?.(100);
-      const rawContent = textParts.join('');
-      return {
-        success: true,
-        result: extractMarkdownContent(rawContent)
-      };
+  try {
+    const result = await response.json();
+    clearInterval(progressInterval);
+    onProgress?.(95);
+
+    if (result.candidates && result.candidates[0] && result.candidates[0].content && result.candidates[0].content.parts) {
+      const textParts = result.candidates[0].content.parts
+        .filter((part: any) => part.text)
+        .map((part: any) => part.text);
+      
+      if (textParts.length > 0) {
+        onProgress?.(100);
+        const rawContent = textParts.join('');
+        return {
+          success: true,
+          result: extractMarkdownContent(rawContent)
+        };
+      }
     }
+  } catch (error) {
+    clearInterval(progressInterval);
+    throw error;
   }
 
   throw new Error('Gemini API返回格式错误');

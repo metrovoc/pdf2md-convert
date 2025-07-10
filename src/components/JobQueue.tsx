@@ -111,11 +111,17 @@ export function JobQueue({ jobs, onDownload, onRemove }: JobQueueProps) {
           
           {job.status === 'processing' && (
             <div className="mt-3">
-              <div className="bg-gray-200 rounded-full h-2">
+              <div className="bg-gray-200 rounded-full h-2 overflow-hidden">
                 <div
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-500 ease-out relative"
                   style={{ width: `${job.progress}%` }}
-                />
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-pulse"></div>
+                </div>
+              </div>
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>{job.progress.toFixed(0)}%</span>
+                <span>{job.startTime && formatRealTimeDuration(job.startTime)}</span>
               </div>
             </div>
           )}

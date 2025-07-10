@@ -10,8 +10,12 @@ export async function convertPdfToMarkdown(
   try {
     onProgress?.(10);
 
-    // 将PDF转换为图像
-    const images = await pdfToImages(file);
+    // 将PDF转换为图像，传递进度回调
+    const images = await pdfToImages(file, (pdfProgress) => {
+      // PDF处理占总进度的10%-40%
+      const totalProgress = 10 + (pdfProgress * 30);
+      onProgress?.(totalProgress);
+    });
     onProgress?.(40);
 
     if (images.length === 0) {
@@ -51,18 +55,18 @@ export async function convertPdfToMarkdown(
   }
 }
 
-async function pdfToImages(file: File): Promise<string[]> {
+async function pdfToImages(file: File, onProgress?: (progress: number) => void): Promise<string[]> {
   try {
     // 在浏览器环境中，我们需要使用不同的方法
     // 由于pdf2pic是Node.js库，我们需要使用浏览器兼容的方案
-    return await convertPdfToImagesInBrowser(file);
+    return await convertPdfToImagesInBrowser(file, onProgress);
   } catch (error) {
     console.error('PDF转换失败:', error);
     throw new Error('PDF转换为图像失败');
   }
 }
 
-async function convertPdfToImagesInBrowser(file: File): Promise<string[]> {
+async function convertPdfToImagesInBrowser(file: File, onProgress?: (progress: number) => void): Promise<string[]> {
   // 动态导入PDF.js
   const pdfjsLib = await import('pdfjs-dist');
   
@@ -92,6 +96,10 @@ async function convertPdfToImagesInBrowser(file: File): Promise<string[]> {
     };
     
     await page.render(renderContext).promise;
+    
+    // 更新进度：基于已处理的页数
+    const pageProgress = pageNum / pdf.numPages;
+    onProgress?.(pageProgress);
     
     // 转换为base64
     const base64 = canvas.toDataURL('image/png').split(',')[1];
